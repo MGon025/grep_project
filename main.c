@@ -17,8 +17,7 @@ int main(int argc, char *argv[]) {
 			return 0;
 		}
 		if (argc > 2){
-			int usingfile = 0;
-			int filecount = 0;
+			int usingfile = 0, filecount = 0;
 			if(*argv[2] == '/' || *argv[2] == '.'){filecount = dir_list(argv);}
      		else{filecount = file_init(argc, argv);}
 			while(usingfile < filecount){
