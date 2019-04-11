@@ -6,14 +6,12 @@
 /* make BLKSIZE and LBSIZE 512 for smaller machines 4096 */
 #define	BLKSIZE	16384
 #define	NBLK	2047
-
 #define	FNSIZE	128
 #define	LBSIZE	16384
 #define	ESIZE	256
 #define	GBSIZE	256
 #define	NBRA	5
 #define	EOF	-1
-
 #define	CBRA	1
 #define	CCHR	2
 #define	CDOT	4
@@ -24,55 +22,19 @@
 #define	CKET	12
 #define	CBACK	14
 #define	CCIRC	15
-
 #define	STAR	01
-
 #define	READ	0
 #define	WRITE	1
 
-int	peekc;
-int	lastc;
-char	file[FNSIZE];
-char	linebuf[LBSIZE];
-char	expbuf[ESIZE+4];
-int	given;
-unsigned int	*addr1, *addr2;
-unsigned int	*dot, *dol, *zero;
-char	genbuf[LBSIZE];
-char	*nextip;
-int	ninbuf;
-int	io;
-int	open(char *, int);
-int	creat(char *, int);
-int	read(int, char*, int);
-int	write(int, char*, int);
-int	close(int);
-int	unlink(char *);
-
-
-char	*globp;
-int	tfile	= -1;
-int	tline;
-char	*tfname;
-char	*loc2;
-char	obuff[BLKSIZE];
-int	nleft;
+int	tfile = -1, nbra, nleft, peekc, lastc, given, io, ninbuf, tline, ufile, gt1 = 0;
+char file[FNSIZE], linebuf[LBSIZE], expbuf[ESIZE+4], genbuf[LBSIZE], obuff[BLKSIZE];
+unsigned int *addr1, *addr2, *dot, *dol, *zero;
+char *nextip, *globp, *tfname, *loc2, *pattern, *pstart, *end = "q\n", *estart, *curfile;
 int	names[26];
-int	nbra;
 unsigned nlall = 128;
-
-char	*mkdtemp(char *);
 char	tmpXXXXX[50] = "/tmp/eXXXXX";
-
 #define MAXFILES 10
 char* filenames[MAXFILES];
-int ufile;
-char* pattern;
-char* pstart;
-char* end = "q\n";
-char* estart;
-int gt1 = 0;
-char* curfile;
 
 void reset(int uf){
 	ufile = uf;
@@ -130,60 +92,51 @@ int file_init(int arc, char* arv[]){
 
 void commands(void) {
 	unsigned int *a1;
-	char c;
-	char lastsep;
-
+    char c, lastsep;
 	for (;;) {
-	c = '\n';
-	for (addr1 = 0;;) {
-		lastsep = c;
-		a1 = 0;		 
-		c = getchr();
-		if (c!=',' && c!=';'){break;}
-		if (a1==0) {
-			a1 = zero+1;
-			if (a1>dol){a1--;}
-		}
-		addr1 = a1;
-		if (c==';'){dot = a1;}
-	}
-	if (lastsep!='\n' && a1==0){a1 = dol;}
-	if ((addr2=a1)==0) {
-		given = 0;
-		addr2 = dot;	
-	}
-	else{given = 1;}
-	if (addr1==0){addr1 = addr2;}
-	switch(c) {
-
-	case 'e':
-		curfile = filenames[ufile];
-		filename(c);
-		init();
-		addr2 = zero;
-		io = open(file, 0);
-		setwide();
-		ninbuf = 0;
-		c = zero != dol;
-		append(getfile, addr2);
-		continue;
-
-	case 'g':
-		global(1);
-		continue;
-
-	case 'p':
-		print();
-		continue;
-
-	case 'q':
-		unlink(tfname);
-		return;
-
-	case EOF:
-		return;
-
-	}
+        c = '\n';
+        for (addr1 = 0;;) {
+            lastsep = c;
+            a1 = 0;
+            c = getchr();
+            if (c!=',' && c!=';'){break;}
+            if (a1==0) {
+                a1 = zero+1;
+                if (a1>dol){a1--;}
+            }
+            addr1 = a1;
+            if (c==';'){dot = a1;}
+        }
+        if (lastsep!='\n' && a1==0){a1 = dol;}
+        if ((addr2=a1)==0) {
+            given = 0;
+            addr2 = dot;
+        } else{given = 1;}
+        if (addr1==0){addr1 = addr2;}
+        switch(c) {
+            case 'e':
+                curfile = filenames[ufile];
+                filename(c);
+                init();
+                addr2 = zero;
+                io = open(file, 0);
+                setwide();
+                ninbuf = 0;
+                c = zero != dol;
+                append(getfile, addr2);
+                continue;
+            case 'g':
+                global(1);
+                continue;
+            case 'p':
+                print();
+                continue;
+            case 'q':
+                unlink(tfname);
+                return;
+            case EOF:
+                return;
+        }
 	}
 }
 
@@ -209,7 +162,6 @@ void setwide(void) {
 void filename(int comm) {
 	char *p1, *p2;
 	int c;
-
 	while ((c = getchr()) == ' '){}
 	p1 = file;
 	do {*p1++ = c;} while ((c = getchr()) != '\n');
@@ -236,17 +188,13 @@ int getchr(void) {
 		pstart++;
 	}
 	else if(*pstart == '\0'){c = *estart; estart++;}
-	//if (read(0, &c, 1) <= 0){return(lastc = EOF);}
 	lastc = c&0177;
 	return(lastc);
 }
 
 int getfile(void) {
 	int c;
-	char *lp, *fp;
-
-	lp = linebuf;
-	fp = nextip;
+	char *lp = linebuf, *fp = nextip;
 	do {
 		if (--ninbuf < 0) {
 			if ((ninbuf = read(io, genbuf, LBSIZE)-1) < 0){
@@ -271,9 +219,7 @@ int getfile(void) {
 
 int append(int (*f)(void), unsigned int *a) {
 	unsigned int *a1, *a2, *rdot;
-	int nline, tl;
-
-	nline = 0;
+	int nline = 0, tl;
 	dot = a;
 	while ((*f)() == 0) {
 		tl = putline();
@@ -288,23 +234,15 @@ int append(int (*f)(void), unsigned int *a) {
 }
 
 char *getline(unsigned int tl) {
-	char *bp, *lp;
-
-	lp = linebuf;
-	bp = getblock(tl, READ);
+	char *bp = getblock(tl, READ), *lp = linebuf;
 	while ((*lp++ = *bp++)){}
 	return(linebuf);
 }
 
 int putline(void) {
-	char *bp, *lp;
-	int nl;
-	unsigned int tl;
-
-	lp = linebuf;
-	tl = tline;
-	bp = getblock(tl, WRITE);
-	nl = nleft;
+    unsigned int tl = tline;
+	char *bp = getblock(tl, WRITE), *lp = linebuf;
+	int nl = nleft;
 	tl &= ~((BLKSIZE/2)-1);
 	while ((*bp = *lp++)) {
 		if (*bp++ == '\n') {
@@ -322,15 +260,12 @@ int putline(void) {
 }
 
 char *getblock(unsigned int atl, int iof) {
-	int off;
-	
-	off = (atl<<1) & (BLKSIZE-1) & ~03;
+	int off = (atl<<1) & (BLKSIZE-1) & ~03;
 	return(obuff+off);
 }
 
 void init(void) {
 	int *markp;
-
 	close(tfile);
 	tline = 2;
 	for (markp = names; markp < &names[26]; ){*markp++ = 0;}
@@ -342,7 +277,6 @@ void init(void) {
 void global(int k) {
 	int c;
 	unsigned int *a1;
-
 	setwide();
 	c = getchr();
 	compile(c);
@@ -363,15 +297,11 @@ void global(int k) {
 }
 
 void compile(int eof) {
-	int c;
-	char *ep;
+	int c = getchr();
+	char *ep = expbuf;
 	char *lastep;
-	char bracket[NBRA], *bracketp;
+	char bracket[NBRA], *bracketp = bracket;
 	int cclcnt;
-
-	ep = expbuf;
-	bracketp = bracket;
-	c = getchr();
 	nbra = 0;
 	if (c=='^') {
 		c = getchr();
@@ -388,7 +318,6 @@ void compile(int eof) {
 		}
 		if (c!='*'){lastep = ep;}
 		switch (c) {
-
 		case '\\':
 			if ((c = getchr())=='(') {
 				*bracketp++ = nbra;
@@ -409,11 +338,9 @@ void compile(int eof) {
 			*ep++ = CCHR;
 			*ep++ = c;
 			continue;
-
 		case '.':
 			*ep++ = CDOT;
 			continue;
-
 		case '*':
 			if (lastep==0 || *lastep==CBRA || *lastep==CKET){
 				*ep++ = CCHR;
@@ -421,15 +348,13 @@ void compile(int eof) {
 			}
 			*lastep |= STAR;
 			continue;
-
 		case '$':
-			if (peekc!='\n'){
+			if (peekc != '\n'){
 				*ep++ = CCHR;
 				*ep++ = c;
 			}
 			*ep++ = CDOL;
 			continue;
-
 		case '[':
 			*ep++ = CCL;
 			*ep++ = 0;
@@ -456,7 +381,6 @@ void compile(int eof) {
 			} while ((c = getchr()) != ']');
 			lastep[1] = cclcnt;
 			continue;
-
 		default:
 			*ep++ = CCHR;
 			*ep++ = c;
@@ -465,66 +389,47 @@ void compile(int eof) {
 }
 
 int execute(unsigned int *addr) {
-	char *p1, *p2;
+	char *p1 = getline(*addr), *p2 = expbuf;
 	int c;
-
-	p2 = expbuf;
-	p1 = getline(*addr);
 	if (*p2==CCHR) {
 		c = p2[1];
-		do {
-			//if (*p1!=c){continue;}
-			if (advance(p1, p2)) {return(1);}
-		} while (*p1++);
+		do { if (advance(p1, p2)) {return(1);}} while (*p1++);
 		return(0);
 	}
-	/* regular algorithm */
-	do {
-		if (advance(p1, p2)) {
-			return(1);
-		}
-	} while (*p1++);
+	do { if (advance(p1, p2)) { return(1);}} while (*p1++);
 	return(0);
 }
 
 int advance(char *lp, char *ep) {
-	char *curlp;
-	int i;
+    for (;;) {
+        switch (*ep++) {
+            case CCHR:
+                if (*ep++ == *lp++){continue;}
+                return(0);
+            case CDOT:
+                if (*lp++){continue;}
+                return(0);
+            case CDOL:
+                if (*lp==0){continue;}
+                return(0);
 
-	for (;;) switch (*ep++) {
-
-	case CCHR:
-		if (*ep++ == *lp++){continue;}
-		return(0);
-
-	case CDOT:
-		if (*lp++){continue;}
-		return(0);
-
-	case CDOL:
-		if (*lp==0){continue;}
-		return(0);
-
-	case CEOF:
-		loc2 = lp;
-		return(1);
-
-	case CCL:
-		if (cclass(ep, *lp++, 1)) {
-			ep += *ep;
-			continue;
-		}
-		return(0);
+            case CEOF:
+                loc2 = lp;
+                return(1);
+            case CCL:
+                if (cclass(ep, *lp++, 1)) {
+                    ep += *ep;
+                    continue;
+                }
+                return(0);
+        }
 	}
 }
 
 int cclass(char *set, int c, int af) {
 	int n;
-
 	if (c==0){return(0);}
 	n = *set++;
-	while (--n){
-		if (*set++ == c){return(af);}
-	}
+	while (--n){ if (*set++ == c){ return(af);}}
 	return(!af);
 }
