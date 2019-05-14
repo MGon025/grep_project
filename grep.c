@@ -3,37 +3,14 @@
 #include <dirent.h>
 #include <ctype.h>
 #include "grep.h"
-/* make BLKSIZE and LBSIZE 512 for smaller machines 4096 */
-#define	BLKSIZE	16384
-#define	NBLK	2047
-#define	FNSIZE	128
-#define	LBSIZE	16384
-#define	ESIZE	256
-#define	GBSIZE	256
-#define	NBRA	5
-#define	EOF	-1
-#define	CBRA	1
-#define	CCHR	2
-#define	CDOT	4
-#define	CCL	6
-#define	NCCL	8
-#define	CDOL	10
-#define	CEOF	11
-#define	CKET	12
-#define	CBACK	14
-#define	CCIRC	15
-#define	STAR	01
-#define	READ	0
-#define	WRITE	1
 
 int	tfile = -1, nbra, nleft, peekc, lastc, given, io, ninbuf, tline, ufile, gt1 = 0;
 char file[FNSIZE], linebuf[LBSIZE], expbuf[ESIZE+4], genbuf[LBSIZE], obuff[BLKSIZE];
 unsigned int *addr1, *addr2, *dot, *dol, *zero;
 char *nextip, *globp, *tfname, *loc2, *pattern, *pstart, *end = "q\n", *estart, *curfile;
-int	names[26];
 unsigned nlall = 128;
+int	names[26];
 char	tmpXXXXX[50] = "/tmp/eXXXXX";
-#define MAXFILES 10
 char* filenames[MAXFILES];
 
 void reset(int uf){
@@ -41,20 +18,17 @@ void reset(int uf){
 	pstart = pattern;
 	estart = end;
 }
-
 void gvars(void){
 	zero = (unsigned *)malloc(nlall*sizeof(unsigned));
 	tfname = mkdtemp(tmpXXXXX);
 }
-
-void pattern_init(int arc, char* arv[]){
-    pattern = malloc(1 + strlen("g/") + strlen(arv[1])+ strlen("\n") );
+void pattern_init(char* p){
+    pattern = malloc(1 + strlen("g/") + strlen(p)+ strlen("\n") );
     strcpy(pattern, "g/");
-	strcat(pattern, arv[1]);
+	strcat(pattern, p);
     strcat(pattern, "\n");
 	pstart = pattern;
 }
-
 int dir_list(char* dirv[]){
 	char* dl[MAXFILES+2];
 	dl[0] = "0"; dl[1] = "0";
@@ -75,7 +49,6 @@ int dir_list(char* dirv[]){
 	}
 	return file_init(ac, dl);
 }
-
 int file_init(int arc, char* arv[]){
 	int i, n, fc = 0;
 	for(i = 2, n = 0; i < arc; i++, n++){
@@ -89,7 +62,6 @@ int file_init(int arc, char* arv[]){
 	if (fc > 1){gt1 = 1;}
 	return fc;
 }
-
 void commands(void) {
 	unsigned int *a1;
     char c, lastsep;
@@ -98,7 +70,7 @@ void commands(void) {
         for (addr1 = 0;;) {
             lastsep = c;
             a1 = 0;
-            c = getchr();
+            c = (char)getchr();
             if (c!=',' && c!=';'){break;}
             if (a1==0) {
                 a1 = zero+1;
@@ -116,7 +88,7 @@ void commands(void) {
         switch(c) {
             case 'e':
                 curfile = filenames[ufile];
-                filename(c);
+                filename();
                 init();
                 addr2 = zero;
                 io = open(file, 0);
@@ -139,61 +111,53 @@ void commands(void) {
         }
 	}
 }
-
 void print(void) {
 	unsigned int *a1 = addr1;
 	do {
 		if(gt1){
-		write(1, (curfile+1), strlen(curfile)-2);
-		write(1, ":", sizeof(":"));
+            write(1, (curfile+1), (int)(strlen(curfile))-2);
+            write(1, ":", sizeof(":"));
 		}
 		puts(getline(*a1++));
 	} while (a1 <= addr2);
 	dot = addr2;
 }
-
 void setwide(void) {
 	if (!given) {
 		addr1 = zero + (dol>zero);
 		addr2 = dol;
 	}
 }
-
-void filename(int comm) {
-	char *p1, *p2;
-	int c;
+void filename(void) {
+	char *p1, c;
 	while ((c = getchr()) == ' '){}
 	p1 = file;
 	do {*p1++ = c;} while ((c = getchr()) != '\n');
 	*p1++ = 0;
 }
-
-int getchr(void) {
-	char c;
+char getchr(void) {
+	char c = '\0';
 	if ((lastc=peekc)) {
 		peekc = 0;
-		return(lastc);
+		return((char)lastc);
 	}
 	if (globp) {
-		if ((lastc = *globp++) != 0){return(lastc);}
+		if ((lastc = *globp++) != 0){return((char)lastc);}
 		globp = 0;
 		return(EOF);
 	}
 	if(*(filenames[ufile]) != '\0'){
 		c = *(filenames[ufile]);
 		(filenames[ufile])++;
-	}
-	else if(*pstart != '\0'){
+	} else if(*pstart != '\0'){
 		c = *pstart;
 		pstart++;
-	}
-	else if(*pstart == '\0'){c = *estart; estart++;}
+	} else if(*pstart == '\0'){c = *estart; estart++;}
 	lastc = c&0177;
-	return(lastc);
+	return((char)lastc);
 }
-
 int getfile(void) {
-	int c;
+	char c;
 	char *lp = linebuf, *fp = nextip;
 	do {
 		if (--ninbuf < 0) {
@@ -216,7 +180,6 @@ int getfile(void) {
 	nextip = fp;
 	return(0);
 }
-
 int append(int (*f)(void), unsigned int *a) {
 	unsigned int *a1, *a2, *rdot;
 	int nline = 0, tl;
@@ -228,29 +191,27 @@ int append(int (*f)(void), unsigned int *a) {
 		a2 = a1+1;
 		rdot = ++dot;
 		while (a1 > rdot){*--a2 = *--a1;}
-		*rdot = tl;
+		*rdot = (unsigned int)tl;
 	}
 	return(nline);
 }
-
 char *getline(unsigned int tl) {
-	char *bp = getblock(tl, READ), *lp = linebuf;
+	char *bp = getblock(tl), *lp = linebuf;
 	while ((*lp++ = *bp++)){}
 	return(linebuf);
 }
-
 int putline(void) {
-    unsigned int tl = tline;
-	char *bp = getblock(tl, WRITE), *lp = linebuf;
+    unsigned int tl = (unsigned int)tline;
+	char *bp = getblock(tl), *lp = linebuf;
 	int nl = nleft;
-	tl &= ~((BLKSIZE/2)-1);
+	tl &= ~((BLKSIZE/2u)-1u);
 	while ((*bp = *lp++)) {
 		if (*bp++ == '\n') {
 			*--bp = 0;
 			break;
 		}
 		if (--nl == 0) {
-			bp = getblock(tl+=(BLKSIZE/2), WRITE);
+			bp = getblock(tl+=(BLKSIZE/2));
 			nl = nleft;
 		}
 	}
@@ -258,12 +219,10 @@ int putline(void) {
 	tline += (((lp-linebuf)+03)>>1)&077776;
 	return(nl);
 }
-
-char *getblock(unsigned int atl, int iof) {
-	int off = (atl<<1) & (BLKSIZE-1) & ~03;
+char *getblock(unsigned int atl) {
+	int off = (atl<<1) & (BLKSIZE-1) & ~03u;
 	return(obuff+off);
 }
-
 void init(void) {
 	int *markp;
 	close(tfile);
@@ -273,21 +232,20 @@ void init(void) {
 	tfile = open(tfname, 2);
 	dot = dol = zero;
 }
-
 void global(int k) {
 	int c;
 	unsigned int *a1;
 	setwide();
 	c = getchr();
-	compile(c);
+	compile();
 	c = getchr();
 	for (a1=zero; a1<=dol; a1++) {
-		*a1 &= ~01;
-		if (a1>=addr1 && a1<=addr2 && execute(a1)==k){*a1 |= 01;}
+		*a1 &= ~01u;
+		if (a1>=addr1 && a1<=addr2 && execute(a1)==k){*a1 |= 01u;}
 	}
 	for (a1=zero; a1<=dol; a1++) {
-		if (*a1 & 01) {
-			*a1 &= ~01;
+		if ((*a1 & 01u)) {
+			*a1 &= ~01u;
 			dot = a1;
 			globp = "p\n";
 			commands();
@@ -295,9 +253,8 @@ void global(int k) {
 		}
 	}
 }
-
-void compile(int eof) {
-	int c = getchr();
+void compile(void) {
+	char c = getchr();
 	char *ep = expbuf;
 	char *lastep;
 	char bracket[NBRA], *bracketp = bracket;
@@ -320,9 +277,9 @@ void compile(int eof) {
 		switch (c) {
 		case '\\':
 			if ((c = getchr())=='(') {
-				*bracketp++ = nbra;
+				*bracketp++ = (char)nbra;
 				*ep++ = CBRA;
-				*ep++ = nbra++;
+				*ep++ = (char)(nbra++);
 				continue;
 			}
 			if (c == ')') {
@@ -379,7 +336,7 @@ void compile(int eof) {
 				*ep++ = c;
 				cclcnt++;
 			} while ((c = getchr()) != ']');
-			lastep[1] = cclcnt;
+			lastep[1] = (char)cclcnt;
 			continue;
 		default:
 			*ep++ = CCHR;
@@ -387,7 +344,6 @@ void compile(int eof) {
 		}
 	}
 }
-
 int execute(unsigned int *addr) {
 	char *p1 = getline(*addr), *p2 = expbuf;
 	int c;
@@ -399,7 +355,6 @@ int execute(unsigned int *addr) {
 	do { if (advance(p1, p2)) { return(1);}} while (*p1++);
 	return(0);
 }
-
 int advance(char *lp, char *ep) {
     for (;;) {
         switch (*ep++) {
@@ -425,11 +380,9 @@ int advance(char *lp, char *ep) {
         }
 	}
 }
-
 int cclass(char *set, int c, int af) {
-	int n;
+	int n = *set++;
 	if (c==0){return(0);}
-	n = *set++;
 	while (--n){ if (*set++ == c){ return(af);}}
 	return(!af);
 }
