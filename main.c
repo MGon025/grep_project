@@ -1,4 +1,3 @@
-#include <stdlib.h>
 #include "grep.h"
 
 #define MAXFILES 10
@@ -9,7 +8,7 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 	if (argc > 1){
-		pattern_init(argc, argv);
+		pattern_init(argv[1]);
 		gvars();
 		init();
 		if(argc == 2){ //use funtions with stdin and quit with ^C
@@ -27,6 +26,5 @@ int main(int argc, char *argv[]) {
 			}
 		}
     } else{puts("too few arguments");}
-
 	return 0;
 }
