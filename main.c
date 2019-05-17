@@ -1,6 +1,6 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include "grep.h"
-
-#define MAXFILES 10
 
 int main(int argc, char *argv[]) {
 	if (argc > MAXFILES+2){
@@ -9,7 +9,8 @@ int main(int argc, char *argv[]) {
 	}
 	if (argc > 1){
 		pattern_init(argv[1]);
-		gvars();
+		zero = (unsigned *)malloc(nlall*sizeof(unsigned));
+		tfname = mkdtemp(tmpXXXXX);
 		init();
 		if(argc == 2){ //use funtions with stdin and quit with ^C
 			puts("use with stdin not implemented");
@@ -17,7 +18,7 @@ int main(int argc, char *argv[]) {
 		}
 		if (argc > 2){
 			int usingfile = 0, filecount = 0;
-			if(*argv[2] == '/' || *argv[2] == '.'){filecount = dir_list(argv);}
+			if(*argv[2] == '/'){filecount = dir_list(argv);}
      		else{filecount = file_init(argc, argv);}
 			while(usingfile < filecount){
 				reset(usingfile);
