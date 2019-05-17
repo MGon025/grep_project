@@ -2,6 +2,9 @@
 #include <string.h>
 #include <dirent.h>
 #include <ctype.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
 #include "grep.h"
 
 int	tfile = -1, nbra, nleft, peekc, lastc, given, io, ninbuf, tline, ufile, gt1 = 0;
@@ -17,10 +20,6 @@ void reset(int uf){
 	ufile = uf;
 	pstart = pattern;
 	estart = end;
-}
-void gvars(void){
-	zero = (unsigned *)malloc(nlall*sizeof(unsigned));
-	tfname = mkdtemp(tmpXXXXX);
 }
 void pattern_init(char* p){
     pattern = malloc(1 + strlen("g/") + strlen(p)+ strlen("\n") );
@@ -38,7 +37,7 @@ int dir_list(char* dirv[]){
     dir = opendir(dirv[2]);
 	if(dir != NULL){
         while ((d = readdir(dir)) != NULL && i < MAXFILES+2){
-            if(isalnum(*(d->d_name)) && (strstr(d->d_name, ".exe") == NULL)){
+            if(isalnum(*(d->d_name)) && (strstr(d->d_name, ".txt") != NULL)){
 				dl[i] = d->d_name; ac++; i++;
 			}
 		}
@@ -115,10 +114,10 @@ void print(void) {
 	unsigned int *a1 = addr1;
 	do {
 		if(gt1){
-            write(1, (curfile+1), (int)(strlen(curfile))-2);
+            write(1, (curfile+1), strlen(curfile)-2);
             write(1, ":", sizeof(":"));
 		}
-		puts(getline(*a1++));
+		puts(getline_(*a1++));
 	} while (a1 <= addr2);
 	dot = addr2;
 }
@@ -161,7 +160,7 @@ int getfile(void) {
 	char *lp = linebuf, *fp = nextip;
 	do {
 		if (--ninbuf < 0) {
-			if ((ninbuf = read(io, genbuf, LBSIZE)-1) < 0){
+			if ((ninbuf = (int)read(io, genbuf, LBSIZE)-1) < 0){
 				if (lp>linebuf) {
 					*genbuf = '\n';
 				} else{return(EOF);}
@@ -195,7 +194,7 @@ int append(int (*f)(void), unsigned int *a) {
 	}
 	return(nline);
 }
-char *getline(unsigned int tl) {
+char *getline_(unsigned int tl) {
 	char *bp = getblock(tl), *lp = linebuf;
 	while ((*lp++ = *bp++)){}
 	return(linebuf);
@@ -345,7 +344,7 @@ void compile(void) {
 	}
 }
 int execute(unsigned int *addr) {
-	char *p1 = getline(*addr), *p2 = expbuf;
+	char *p1 = getline_(*addr), *p2 = expbuf;
 	int c;
 	if (*p2==CCHR) {
 		c = p2[1];
